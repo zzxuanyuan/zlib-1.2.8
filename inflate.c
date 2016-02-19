@@ -80,6 +80,7 @@
  * The history for versions after 1.2.0 are in ChangeLog in zlib distribution.
  */
 
+#include <stdio.h>
 #include "zutil.h"
 #include "inftrees.h"
 #include "inflate.h"
@@ -643,6 +644,8 @@ int flush;
                 break;
             }
             NEEDBITS(16);
+	    printf("BITS(8)=%x\n", BITS(8));
+	    printf("hold=%lx\n",hold);
 #ifdef GUNZIP
             if ((state->wrap & 2) && hold == 0x8b1f) {  /* gzip header */
                 state->check = crc32(0L, Z_NULL, 0);
@@ -663,12 +666,16 @@ int flush;
                 state->mode = BAD;
                 break;
             }
+	    printf("BITS(8)=%x\n", BITS(8));
+	    printf("hold=%lx\n",hold);
+
             if (BITS(4) != Z_DEFLATED) {
                 strm->msg = (char *)"unknown compression method";
                 state->mode = BAD;
                 break;
             }
             DROPBITS(4);
+	    printf("BITS(4)=%x\n",BITS(4));
             len = BITS(4) + 8;
             if (state->wbits == 0)
                 state->wbits = len;
@@ -677,7 +684,9 @@ int flush;
                 state->mode = BAD;
                 break;
             }
+	    printf("wbits=%d\n",state->wbits);
             state->dmax = 1U << len;
+	    printf("dmax=%d\n",state->dmax);
             Tracev((stderr, "inflate:   zlib header ok\n"));
             strm->adler = state->check = adler32(0L, Z_NULL, 0);
             state->mode = hold & 0x200 ? DICTID : TYPE;
@@ -812,11 +821,13 @@ int flush;
             break;
 #endif
         case DICTID:
+	    printf("flag is dictid\n");
             NEEDBITS(32);
             strm->adler = state->check = ZSWAP32(hold);
             INITBITS();
             state->mode = DICT;
         case DICT:
+	    printf("flag is dict\n");
             if (state->havedict == 0) {
                 RESTORE();
                 return Z_NEED_DICT;
@@ -824,9 +835,12 @@ int flush;
             strm->adler = state->check = adler32(0L, Z_NULL, 0);
             state->mode = TYPE;
         case TYPE:
+	    printf("flag is type and flush=%d\n",flush);
             if (flush == Z_BLOCK || flush == Z_TREES) goto inf_leave;
         case TYPEDO:
+	    printf("flag is typedo\n");
             if (state->last) {
+		printf("this is the last block\n");
                 BYTEBITS();
                 state->mode = CHECK;
                 break;
@@ -841,6 +855,7 @@ int flush;
                 state->mode = STORED;
                 break;
             case 1:                             /* fixed block */
+		printf("fixed block\n");
                 fixedtables(state);
                 Tracev((stderr, "inflate:     fixed codes block%s\n",
                         state->last ? " (last)" : ""));
@@ -851,11 +866,13 @@ int flush;
                 }
                 break;
             case 2:                             /* dynamic block */
+		printf("dynamic block\n");
                 Tracev((stderr, "inflate:     dynamic codes block%s\n",
                         state->last ? " (last)" : ""));
                 state->mode = TABLE;
                 break;
             case 3:
+		printf("invalid block\n");
                 strm->msg = (char *)"invalid block type";
                 state->mode = BAD;
             }
@@ -897,10 +914,13 @@ int flush;
         case TABLE:
             NEEDBITS(14);
             state->nlen = BITS(5) + 257;
+	    printf("state->nlen=%d\n",state->nlen);
             DROPBITS(5);
             state->ndist = BITS(5) + 1;
+	    printf("state->ndist=%d\n",state->ndist);
             DROPBITS(5);
             state->ncode = BITS(4) + 4;
+	    printf("state->ncode=%d\n",state->ncode);
             DROPBITS(4);
 #ifndef PKZIP_BUG_WORKAROUND
             if (state->nlen > 286 || state->ndist > 30) {
